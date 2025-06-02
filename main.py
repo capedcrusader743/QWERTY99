@@ -49,12 +49,17 @@ def next_sentence(game_id: str):
     return {"sentence": sentence, "level": game.difficulty_level}
 
 @app.post("/submit")
-def submit(input_data: InputModel):
-    game = get_game(input_data.game_id)
+async def submit_typing(data: dict):
+    game_id = data.get("game_id")
+    typed = data.get("typed", "")
+    is_backspace = data.get("backspace", False)
+    game = get_game(game_id)
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
-    result = game.submit_typing(input_data.typed)
+
+    result = game.submit_typing(typed, is_backspace=is_backspace)
     return result
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

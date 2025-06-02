@@ -20,7 +20,7 @@ export default function TypeGame() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
-  const previousInput = useRef('');
+  const previousInputLength = useRef(0);
   const navigate = useNavigate();
 
   // Initialize game
@@ -63,9 +63,9 @@ export default function TypeGame() {
     const isBackspace = newValue.length < input.length;
 
     // Track backspaces locally
-    let backspaces = game.backspaces;
-    if (isBackspace) {
-      backspaces = Math.min(game.backspaces + 1, game.maxBackspaces);
+    let newBackspaces = game.backspaces;
+    if (isBackspace && newBackspaces < game.maxBackspaces) {
+      newBackspaces = game.backspaces + 1;
     }
 
     setInput(newValue);
@@ -76,7 +76,8 @@ export default function TypeGame() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           game_id: game.gameId,
-          typed: newValue
+          typed: newValue,
+          backspace: isBackspace
         })
       });
 
@@ -86,7 +87,7 @@ export default function TypeGame() {
       setGame(prev => ({
         ...prev!,
         errors: result.errors,
-        backspaces: backspaces, // Use our locally tracked backspaces
+        backspaces: newBackspaces,
       }));
 
       if (result.game_over) {
@@ -95,7 +96,7 @@ export default function TypeGame() {
       }
 
       // If sentence completed, get next one
-      if (result.correct) {
+      if (result.completed) {
         const calculateWpm = () => {
           if (!game.startTime) return 0;
           const words = game.sentence.split(' ').length;
@@ -113,16 +114,16 @@ export default function TypeGame() {
           difficulty: level,
           wpm,
           startTime: Date.now(),
-          backspaces: 0 // Reset backspaces for new sentence
+          // Keep the same backspace count between sentences
+          backspaces: newBackspaces
         }));
         setInput('');
-        previousInput.current = '';
       }
     } catch (err) {
       console.error('Error submitting input:', err);
     }
 
-    previousInput.current = newValue;
+    previousInputLength.current = newValue.length;
   };
 
   // Render colored sentence

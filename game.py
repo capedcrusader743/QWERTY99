@@ -61,7 +61,7 @@ class GameState:
         self.current_backspaces += 1
 
     def is_game_over(self):
-        return self.current_errors >= self.max_errors or self.current_backspaces >= self.max_backspaces
+        return (self.current_errors + self.current_backspaces) >= 10
 
     def update_difficulty(self):
         elapsed_time = time.time() - self.start_time
@@ -74,74 +74,35 @@ class GameState:
         else:
             self.difficulty_level = 1
 
-    # def type_sentence(self, target):
-    #     print(f"Type this: {target}")
-    #     print(f"(Allowed: {self.max_errors} errors, {self.max_backspaces} backspaces)\n")
-    #     print(f"(Current errors: {self.current_errors} errors, {self.current_backspaces} backspaces)\n")
-    #     typed = ""
-    #
-    #     while len(typed) < len(target):
-    #         char = getch().decode('utf-8')
-    #
-    #         if char in ('\x08', '\x7f'): #Handle backspace
-    #             if typed:
-    #                 typed = typed[:-1]
-    #                 self.increment_backspaces()
-    #         else:
-    #             typed += char
-    #             if char != target[len(typed) - 1] and self.current_backspaces == self.max_backspaces:
-    #                 self.increment_errors()
-    #
-    #         print(f"\rTyped: {typed}{' ' * (len(target) - len(typed))}", end='')
-    #
-    #         if self.current_errors >= self.max_errors or self.current_backspaces >= self.max_backspaces:
-    #             print("\n Game Over: Reached limits.")
-    #             return False
-    #
-    #     print("\n Sentence completed!")
-    #     return True
-
-    def submit_typing(self, typed_input: str):
+    def submit_typing(self, typed_input: str, is_backspace=False):
         if not self.current_sentence:
             raise ValueError("No current sentence yet")
 
         target = self.current_sentence
-        is_correct = typed_input.strip() == target.strip()
 
-        # Calculate new errors (only if out of backspaces)
+        if is_backspace:
+            if self.current_backspaces < self.max_backspaces:
+                self.increment_backspaces()
+
         new_errors = 0
         if self.current_backspaces >= self.max_backspaces:
-            for i in range(min(len(typed_input), len(target))):
+            prev_len = len(self.previous_input)
+            for i in range(prev_len, min(len(typed_input), len(target))):
                 if typed_input[i] != target[i]:
                     new_errors += 1
 
-        # Update state
+        self.previous_input = typed_input
         self.current_errors += new_errors
 
         return {
-            "correct": is_correct,
+            "correct": typed_input.strip() == target.strip(),
+            "completed": len(typed_input) == len(target),
             "errors": self.current_errors,
             "backspaces": self.current_backspaces,
             "game_over": self.is_game_over(),
             "difficulty_level": self.difficulty_level
         }
 
-    # def game_loop(self):
-    #     input("Press enter to begin...\n")
-    #     self.start_time = time.time()
-    #
-    #     while not self.is_game_over():
-    #         self.update_difficulty()
-    #         sentence = self.get_next_sentence()
-    #         print(f"\nLevel {self.difficulty_level}")
-    #         result = self.type_sentence(sentence)
-    #
-    #         if not result:
-    #             break
-
-# if __name__ == "__main__":
-#     game = GameState()
-#     game.game_loop()
 
 games: Dict[str, GameState] = {}
 
