@@ -43,6 +43,7 @@ class GameState:
         self.start_time = time.time()
         self.difficulty_level = 1
         self.current_sentence = ""
+        self.previous_input = ""
 
     def get_next_sentence(self):
         # sentences = self.sentences.get(self.difficulty_level, [])
