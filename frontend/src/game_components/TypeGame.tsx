@@ -11,6 +11,8 @@ interface GameState {
   maxBackspaces: number;
   wpm: number;
   startTime: number | null;
+  incomingGarbage?: boolean;
+  streak?: number;
 }
 
 export default function TypeGame() {
@@ -19,6 +21,7 @@ export default function TypeGame() {
   const [gameOver, setGameOver] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [incomingGarbage, setIncomingGarbage] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const previousInputLength = useRef(0);
   const navigate = useNavigate();
@@ -45,7 +48,8 @@ export default function TypeGame() {
           maxErrors: 5,
           maxBackspaces: 5,
           wpm: 0,
-          startTime: Date.now()
+          startTime: Date.now(),
+          streak: 0
         });
         setLoading(false);
       } catch (err) {
@@ -82,12 +86,14 @@ export default function TypeGame() {
       });
 
       const result = await response.json();
+      console.log(result)
 
       // Update game state from backend response
       setGame(prev => ({
         ...prev!,
         errors: result.errors,
         backspaces: newBackspaces,
+        streak: result.streak ?? prev!.streak
       }));
 
       if (result.game_over) {
@@ -95,7 +101,7 @@ export default function TypeGame() {
         return;
       }
 
-      // If sentence completed, get next one
+      // If sentence completed, check for garbage delay
       if (result.completed) {
         const calculateWpm = () => {
           if (!game.startTime) return 0;
@@ -105,19 +111,46 @@ export default function TypeGame() {
         };
 
         const wpm = calculateWpm();
-        const sentenceRes = await fetch(`http://localhost:8000/sentence/${game.gameId}`);
-        const { sentence, level } = await sentenceRes.json();
 
-        setGame(prev => ({
-          ...prev!,
-          sentence,
-          difficulty: level,
-          wpm,
-          startTime: Date.now(),
-          // Keep the same backspace count between sentences
-          backspaces: newBackspaces
-        }));
-        setInput('');
+        if (result.incoming_garbage) {
+          setIncomingGarbage(true);
+          setTimeout(async () => {
+            let sentenceData = null;
+
+            while (!sentenceData || !sentenceData.sentence) {
+              const response = await fetch(`http://localhost:8000/sentence/${game.gameId}`);
+              sentenceData = await response.json();
+              if (!sentenceData.sentence) {
+                await new Promise((res) => setTimeout(res, 200)); // Wait a bit before retrying
+              }
+            }
+
+            const { sentence, level } = sentenceData;
+
+            setGame(prev => ({
+              ...prev!,
+              sentence,
+              difficulty: level,
+              wpm,
+              startTime: Date.now(),
+              backspaces: newBackspaces,
+            }));
+            setInput('');
+            setIncomingGarbage(false);
+          }, 1500);
+        } else {
+          const sentenceRes = await fetch(`http://localhost:8000/sentence/${game.gameId}`);
+          const { sentence, level } = await sentenceRes.json();
+          setGame(prev => ({
+            ...prev!,
+            sentence,
+            difficulty: level,
+            wpm,
+            startTime: Date.now(),
+            backspaces: newBackspaces
+          }));
+          setInput('');
+        }
       }
     } catch (err) {
       console.error('Error submitting input:', err);
@@ -192,6 +225,12 @@ export default function TypeGame() {
           </div>
           <div>WPM: {game.wpm}</div>
         </div>
+
+        {incomingGarbage && (
+            <div className="text-red-500 text-center text-lg font-semibold mb-4 animate-pulse">
+              Garbage sentence incoming!
+            </div>
+        )}
 
         {/* Typing area */}
         <div className="bg-gray-800 p-6 rounded-lg mb-6 min-h-32">

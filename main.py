@@ -1,3 +1,5 @@
+import time
+
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
@@ -46,6 +48,10 @@ def next_sentence(game_id: str):
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
     sentence = game.get_next_sentence()
+    if sentence is None:
+        # Indicate frontend should retry shortly
+        return {"sentence": None, "level": game.difficulty_level}
+
     return {"sentence": sentence, "level": game.difficulty_level}
 
 @app.post("/submit")
@@ -60,6 +66,14 @@ async def submit_typing(data: dict):
     result = game.submit_typing(typed, is_backspace=is_backspace)
     return result
 
+# @app.get("/warning/{game_id}")
+# def garbage_warning(game_id: str):
+#     game = get_game(game_id)
+#     if not game:
+#         raise HTTPException(status_code=404, detail="Game not found")
+#     if game.incoming_garbage and time.time() < game.garbage_warning_time:
+#         return {"warning": True, "time_left": game.garbage_warning_time - time.time()}
+#     return {"warning": False}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
