@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import {WebSocket} from "vite";
 
 interface GameState {
   gameId: string;
@@ -16,6 +17,22 @@ interface GameState {
 }
 
 export default function TypeGame() {
+  const [searchParams] = useSearchParams();
+  const roomId = searchParams.get("room_id");
+  const playerId = searchParams.get("player_id");
+  const navigate = useNavigate();
+  const wsRef = useRef<WebSocket | null>(null);
+
+  // Early check for missing params
+  if (!roomId || !playerId) {
+    return (
+        <div className="text-red-500 text-center">
+          Missing room ID or player ID in URL.
+        </div>
+    );
+  }
+
+
   const [game, setGame] = useState<GameState | null>(null);
   const [input, setInput] = useState('');
   const [gameOver, setGameOver] = useState(false);
@@ -24,23 +41,36 @@ export default function TypeGame() {
   const [incomingGarbage, setIncomingGarbage] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const previousInputLength = useRef(0);
-  const navigate = useNavigate();
+  const [otherPlayersTyping, setOtherPlayersTyping] = useState<{ [id: string]: string }>({});
+  const [winner, setWinner] = useState<String | null>(null);
 
-  // Initialize game
+
+  // Initialize multiplayer game
   useEffect(() => {
-    const initializeGame = async () => {
+    const initializeMultiplayerGame = async () => {
       try {
         setLoading(true);
-        const startRes = await fetch('http://localhost:8000/start', {
-          method: 'POST'
+        await fetch('http://localhost:8000/room/join', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ room_id: roomId, player_id: playerId }),
         });
-        const { game_id } = await startRes.json();
 
-        const sentenceRes = await fetch(`http://localhost:8000/sentence/${game_id}`);
-        const { sentence, level } = await sentenceRes.json();
+        const res = await fetch('http://localhost:8000/room/sentence/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ room_id: roomId, player_id: playerId }),
+        });
+        const { sentence, level } = await res.json();
+
+        if (!sentence) {
+          setError("Failed to receive sentence from server.");
+          setLoading(false);
+          return;
+        }
 
         setGame({
-          gameId: game_id,
+          gameId: roomId,
           sentence,
           difficulty: level,
           errors: 0,
@@ -51,14 +81,57 @@ export default function TypeGame() {
           startTime: Date.now(),
           streak: 0
         });
+
         setLoading(false);
       } catch (err) {
-        setError('Failed to initialize game');
+        console.error('Failed to initialize game', err);
+        setError('Failed to join or start game.');
         setLoading(false);
       }
     };
-    initializeGame();
-  }, []);
+    initializeMultiplayerGame();
+
+    useEffect(() => {
+      if (!roomId || !playerId) return;
+
+      const ws = new WebSocket(`ws://localhost:8000/ws/${playerId}`);
+      wsRef.current = ws;
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data)
+
+        if (data.type === 'typing_update') {
+          setOtherPlayersTyping(prev => ({ ...prev, [data.player_id]: data.input}));
+        } else if (data.type === 'sentence_complete') {
+          console.log(`${data.player_id} finished a sentence`);
+        } else if (data.type === 'garbage_attack') {
+          setIncomingGarbage(true);
+        } else if (data.type === 'game_over') {
+          if (data.player_id === playerId) {
+            setGameOver(true);
+          } else {
+            console.log(`${data.player_id} is out`);
+          }
+        } else if (data.type === 'winner') {
+          setWinner(data.player_id);
+        }
+      };
+
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ type: 'ready', player_id: playerId }));
+      };
+
+      ws.onclose = () => {
+        console.log('WebSocket closed');
+      }
+
+      return () => {
+        ws.close();
+      };
+
+    }, [roomId, playerId]);
+
+  }, [roomId, playerId]);
 
   // Handle input changes
   const handleInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -66,29 +139,36 @@ export default function TypeGame() {
     const newValue = e.target.value;
     const isBackspace = newValue.length < input.length;
 
-    // Track backspaces locally
     let newBackspaces = game.backspaces;
     if (isBackspace && newBackspaces < game.maxBackspaces) {
-      newBackspaces = game.backspaces + 1;
+      newBackspaces++;
     }
 
     setInput(newValue);
+
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'typing',
+        playerId: playerId,
+        input: newValue
+      }));
+    }
 
     try {
       const response = await fetch('http://localhost:8000/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          game_id: game.gameId,
+          room_id: roomId,
+          player_id: playerId,
           typed: newValue,
           backspace: isBackspace
         })
       });
 
       const result = await response.json();
-      console.log(result)
+      console.log(result);
 
-      // Update game state from backend response
       setGame(prev => ({
         ...prev!,
         errors: result.errors,
@@ -101,7 +181,6 @@ export default function TypeGame() {
         return;
       }
 
-      // If sentence completed, check for garbage delay
       if (result.completed) {
         const calculateWpm = () => {
           if (!game.startTime) return 0;
@@ -116,12 +195,15 @@ export default function TypeGame() {
           setIncomingGarbage(true);
           setTimeout(async () => {
             let sentenceData = null;
-
             while (!sentenceData || !sentenceData.sentence) {
-              const response = await fetch(`http://localhost:8000/sentence/${game.gameId}`);
+              const response = await fetch('http://localhost:8000/room/sentence', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ room_id: roomId, player_id: playerId }),
+                  });
               sentenceData = await response.json();
               if (!sentenceData.sentence) {
-                await new Promise((res) => setTimeout(res, 200)); // Wait a bit before retrying
+                await new Promise((res) => setTimeout(res, 200));
               }
             }
 
@@ -139,7 +221,11 @@ export default function TypeGame() {
             setIncomingGarbage(false);
           }, 1500);
         } else {
-          const sentenceRes = await fetch(`http://localhost:8000/sentence/${game.gameId}`);
+          const sentenceRes = await fetch('http://localhost:8000/room/sentence', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ room_id: roomId, player_id: playerId }),
+          });
           const { sentence, level } = await sentenceRes.json();
           setGame(prev => ({
             ...prev!,
@@ -194,7 +280,12 @@ export default function TypeGame() {
   if (gameOver) {
     return (
       <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center">
-        <h1 className="text-4xl text-red-500 mb-4">Game Over!</h1>
+        <h1 className="text-4xl mb-4">
+          {winner === playerId
+            ? <span className="text-green-400">You Win!</span>
+              : <span className="text-red-500">Game Over!</span>
+          }
+        </h1>
         <div className="text-white mb-6">
           <p>Final WPM: {game.wpm}</p>
           <p>Difficulty Reached: Level {game.difficulty}</p>
@@ -235,6 +326,13 @@ export default function TypeGame() {
         {/* Typing area */}
         <div className="bg-gray-800 p-6 rounded-lg mb-6 min-h-32">
           <div className="whitespace-pre-wrap leading-relaxed">
+            {Object.entries(otherPlayersTyping).map(([id, typed]) => (
+                id !== playerId && (
+                    <div key={id} className="text-sm text-gray-400 italic mb-2">
+                      {id} typing: <span className="text-white">{typed}</span>
+                    </div>
+                )
+            ))}
             {renderSentence()}
           </div>
         </div>
