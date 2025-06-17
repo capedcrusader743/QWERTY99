@@ -20,6 +20,11 @@ class MultiplayerGameSession:
     def get_player(self, player_id: str) -> PlayerState:
         return self.players.get(player_id)
 
+    def all_players_ready(self):
+        if len(self.players) < 2:
+            return False
+        return all(p.ready for p in self.players.values())
+
     def submit_typing(self, player_id: str, typed: str, is_backspace=False):
         player = self.players[player_id]
         if not player.current_sentence:

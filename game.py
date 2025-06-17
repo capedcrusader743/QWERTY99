@@ -61,6 +61,7 @@ class PlayerState:
         self.streak = 0
         self.live_input = ""
         self.eliminated = False
+        self.ready = False
 
     def update_difficulty(self):
         elapsed_time = time.time() - self.start_time
@@ -90,5 +91,8 @@ class PlayerState:
 
     def is_game_over(self):
         return self.current_errors > self.max_errors or self.current_backspaces > self.max_backspaces
+
+    def mark_ready(self):
+        self.ready = True
 
 

@@ -180,11 +180,24 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
 
             # === Ready Notice ===
             elif msg_type == "ready":
+                game = lobby.get_game(room_id)
+                player = game.get_player(data.player_id)
+                player.mark_ready()
+
+                # Notify other players that this player is ready
                 for pid, conn in active_connections[room_id].items():
                     if pid != player_id:
                         await conn.send_json({
                             "type": "ready",
                             "player_id": player_id
+                        })
+
+                # If all players are ready, start the game
+                if game.all_players_ready():
+                    game.start_game()
+                    for pid, conn in active_connections[room_id].items():
+                        await conn.send_json({
+                            "type": "game_start"
                         })
 
     except WebSocketDisconnect:
@@ -197,6 +210,10 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
                     "type": "player_left",
                     "player_id": player_id
                 })
+
+    # For debugging
+    except Exception as e:
+        print(f"[WebSocket Error] Player {player_id} in room {room_id}: {e}")
 
 
 if __name__ == "__main__":

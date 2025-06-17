@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import {WebSocket} from "vite";
 
 interface GameState {
   gameId: string;
@@ -21,17 +20,10 @@ export default function TypeGame() {
   const roomId = searchParams.get("room_id");
   const playerId = searchParams.get("player_id");
   const navigate = useNavigate();
-  const wsRef = useRef<WebSocket | null>(null);
 
-  // Early check for missing params
   if (!roomId || !playerId) {
-    return (
-        <div className="text-red-500 text-center">
-          Missing room ID or player ID in URL.
-        </div>
-    );
+    return <div className="text-red-500 text-center">Missing room ID or player ID in URL.</div>;
   }
-
 
   const [game, setGame] = useState<GameState | null>(null);
   const [input, setInput] = useState('');
@@ -39,17 +31,23 @@ export default function TypeGame() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [incomingGarbage, setIncomingGarbage] = useState(false);
+  const [winner, setWinner] = useState<string | null>(null);
+  const [otherPlayersTyping, setOtherPlayersTyping] = useState<{ [id: string]: string }>({});
+  // const [readyPlayers, setReadyPlayers] = useState<Set<string>>(new Set());
+  // const [allPlayers, setAllPlayers] = useState<string[]>([]);
+  // const [isReady, setReady] = useState(false);
+  const [waitingToStart, setWaitingToStart] = useState(true);
+
+  const wsRef = useRef<WebSocket | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const previousInputLength = useRef(0);
-  const [otherPlayersTyping, setOtherPlayersTyping] = useState<{ [id: string]: string }>({});
-  const [winner, setWinner] = useState<String | null>(null);
 
 
-  // Initialize multiplayer game
-  useEffect(() => {
-    const initializeMultiplayerGame = async () => {
+      const initializeMultiplayerGame = async () => {
       try {
         setLoading(true);
+
+
         await fetch('http://localhost:8000/room/join', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -82,6 +80,7 @@ export default function TypeGame() {
           streak: 0
         });
 
+        setWaitingToStart(false);
         setLoading(false);
       } catch (err) {
         console.error('Failed to initialize game', err);
@@ -89,67 +88,60 @@ export default function TypeGame() {
         setLoading(false);
       }
     };
+
+  useEffect(() => {
+
+
     initializeMultiplayerGame();
-
-    useEffect(() => {
-      if (!roomId || !playerId) return;
-
-      const ws = new WebSocket(`ws://localhost:8000/ws/${playerId}`);
-      wsRef.current = ws;
-
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data)
-
-        if (data.type === 'typing_update') {
-          setOtherPlayersTyping(prev => ({ ...prev, [data.player_id]: data.input}));
-        } else if (data.type === 'sentence_complete') {
-          console.log(`${data.player_id} finished a sentence`);
-        } else if (data.type === 'garbage_attack') {
-          setIncomingGarbage(true);
-        } else if (data.type === 'game_over') {
-          if (data.player_id === playerId) {
-            setGameOver(true);
-          } else {
-            console.log(`${data.player_id} is out`);
-          }
-        } else if (data.type === 'winner') {
-          setWinner(data.player_id);
-        }
-      };
-
-      ws.onopen = () => {
-        ws.send(JSON.stringify({ type: 'ready', player_id: playerId }));
-      };
-
-      ws.onclose = () => {
-        console.log('WebSocket closed');
-      }
-
-      return () => {
-        ws.close();
-      };
-
-    }, [roomId, playerId]);
-
   }, [roomId, playerId]);
 
-  // Handle input changes
+  useEffect(() => {
+    if (!roomId || !playerId) return;
+
+    const ws = new WebSocket(`ws://localhost:8000/ws/${roomId}/${playerId}`);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: 'ready', player_id: playerId }));
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.type === 'typing_update') {
+        setOtherPlayersTyping(prev => ({ ...prev, [data.player_id]: data.input }));
+      } else if (data.type === 'garbage_attack') {
+        setIncomingGarbage(true);
+      } else if (data.type === 'game_over') {
+        if (data.player_id === playerId) {
+          setGameOver(true);
+        }
+      } else if (data.type === 'winner') {
+        setWinner(data.player_id);
+        setGameOver(true);
+      } else if (data.type === 'game_start') {
+        console.log("Game is starting...");
+        setWaitingToStart(false);
+        initializeMultiplayerGame(); // Call the game init when server says go
+      }
+    };
+
+    ws.onclose = () => console.log("WebSocket closed");
+
+    return () => ws.close();
+  }, [roomId, playerId]);
+
   const handleInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!game) return;
     const newValue = e.target.value;
     const isBackspace = newValue.length < input.length;
-
-    let newBackspaces = game.backspaces;
-    if (isBackspace && newBackspaces < game.maxBackspaces) {
-      newBackspaces++;
-    }
 
     setInput(newValue);
 
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
         type: 'typing',
-        playerId: playerId,
+        player_id: playerId,
         input: newValue
       }));
     }
@@ -167,12 +159,11 @@ export default function TypeGame() {
       });
 
       const result = await response.json();
-      console.log(result);
 
       setGame(prev => ({
         ...prev!,
         errors: result.errors,
-        backspaces: newBackspaces,
+        backspaces: isBackspace ? prev!.backspaces + 1 : prev!.backspaces,
         streak: result.streak ?? prev!.streak
       }));
 
@@ -182,58 +173,51 @@ export default function TypeGame() {
       }
 
       if (result.completed) {
-        const calculateWpm = () => {
+        const wpm = (() => {
           if (!game.startTime) return 0;
           const words = game.sentence.split(' ').length;
           const minutes = (Date.now() - game.startTime) / 60000;
           return Math.round(words / minutes);
-        };
+        })();
 
-        const wpm = calculateWpm();
+        const fetchNewSentence = async () => {
+          let data = null;
+          while (!data || !data.sentence) {
+            const r = await fetch('http://localhost:8000/room/sentence', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ room_id: roomId, player_id: playerId }),
+            });
+            data = await r.json();
+            if (!data.sentence) await new Promise((res) => setTimeout(res, 200));
+          }
+          return data;
+        };
 
         if (result.incoming_garbage) {
           setIncomingGarbage(true);
           setTimeout(async () => {
-            let sentenceData = null;
-            while (!sentenceData || !sentenceData.sentence) {
-              const response = await fetch('http://localhost:8000/room/sentence', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ room_id: roomId, player_id: playerId }),
-                  });
-              sentenceData = await response.json();
-              if (!sentenceData.sentence) {
-                await new Promise((res) => setTimeout(res, 200));
-              }
-            }
-
-            const { sentence, level } = sentenceData;
-
+            const { sentence, level } = await fetchNewSentence();
             setGame(prev => ({
               ...prev!,
               sentence,
               difficulty: level,
               wpm,
               startTime: Date.now(),
-              backspaces: newBackspaces,
+              backspaces: 0,
             }));
             setInput('');
             setIncomingGarbage(false);
           }, 1500);
         } else {
-          const sentenceRes = await fetch('http://localhost:8000/room/sentence', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ room_id: roomId, player_id: playerId }),
-          });
-          const { sentence, level } = await sentenceRes.json();
+          const { sentence, level } = await fetchNewSentence();
           setGame(prev => ({
             ...prev!,
             sentence,
             difficulty: level,
             wpm,
             startTime: Date.now(),
-            backspaces: newBackspaces
+            backspaces: 0
           }));
           setInput('');
         }
@@ -245,21 +229,17 @@ export default function TypeGame() {
     previousInputLength.current = newValue.length;
   };
 
-  // Render colored sentence
   const renderSentence = () => {
     if (!game) return null;
-
     return game.sentence.split('').map((char, i) => {
-      let className = 'text-gray-400'; // Not typed yet
-
+      let className = 'text-gray-400';
       if (i < input.length) {
         className = input[i] === char
-          ? 'text-green-500' // Correct
+          ? 'text-green-500'
           : game.backspaces >= game.maxBackspaces
-            ? 'text-red-500 underline' // Error (no backspaces left)
-            : 'text-yellow-500'; // Warning (can still backspace)
+            ? 'text-red-500 underline'
+            : 'text-yellow-500';
       }
-
       return (
         <span key={i} className={`${className} text-2xl font-mono`}>
           {char}
@@ -268,10 +248,18 @@ export default function TypeGame() {
     });
   };
 
-  // Focus input on mount
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  if (waitingToStart) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center text-white">
+        <h2 className="text-3xl mb-4">Waiting for other players to get ready...</h2>
+        <p className="text-gray-400">Once all players are ready, the game will begin!</p>
+      </div>
+    );
+  }
 
   if (loading) return <div className="text-white text-center">Loading game...</div>;
   if (error) return <div className="text-red-500 text-center">{error}</div>;
@@ -283,8 +271,7 @@ export default function TypeGame() {
         <h1 className="text-4xl mb-4">
           {winner === playerId
             ? <span className="text-green-400">You Win!</span>
-              : <span className="text-red-500">Game Over!</span>
-          }
+            : <span className="text-red-500">Game Over!</span>}
         </h1>
         <div className="text-white mb-6">
           <p>Final WPM: {game.wpm}</p>
@@ -305,6 +292,16 @@ export default function TypeGame() {
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-3xl">
+
+        {/* Other players' typing */}
+        {Object.entries(otherPlayersTyping).map(([id, typed]) =>
+          id !== playerId && (
+            <div key={id} className="text-sm text-gray-400 italic mb-2">
+              {id} typing: <span className="text-white">{typed}</span>
+            </div>
+          )
+        )}
+
         {/* Game stats */}
         <div className="flex justify-between text-white mb-8">
           <div>Level: {game.difficulty}</div>
@@ -318,26 +315,19 @@ export default function TypeGame() {
         </div>
 
         {incomingGarbage && (
-            <div className="text-red-500 text-center text-lg font-semibold mb-4 animate-pulse">
-              Garbage sentence incoming!
-            </div>
+          <div className="text-red-500 text-center text-lg font-semibold mb-4 animate-pulse">
+            Garbage sentence incoming!
+          </div>
         )}
 
         {/* Typing area */}
         <div className="bg-gray-800 p-6 rounded-lg mb-6 min-h-32">
           <div className="whitespace-pre-wrap leading-relaxed">
-            {Object.entries(otherPlayersTyping).map(([id, typed]) => (
-                id !== playerId && (
-                    <div key={id} className="text-sm text-gray-400 italic mb-2">
-                      {id} typing: <span className="text-white">{typed}</span>
-                    </div>
-                )
-            ))}
             {renderSentence()}
           </div>
         </div>
 
-        {/* Input field */}
+        {/* Input */}
         <input
           ref={inputRef}
           type="text"
