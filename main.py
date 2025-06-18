@@ -181,8 +181,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
             # === Ready Notice ===
             elif msg_type == "ready":
                 game = lobby.get_game(room_id)
-                player = game.get_player(data.player_id)
-                player.mark_ready()
+                should_start = game.mark_ready(player_id)
 
                 # Notify other players that this player is ready
                 for pid, conn in active_connections[room_id].items():
@@ -193,11 +192,11 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
                         })
 
                 # If all players are ready, start the game
-                if game.all_players_ready():
+                if should_start and not game.is_game_started():
                     game.start_game()
-                    for pid, conn in active_connections[room_id].items():
+                    for conn in active_connections[room_id].values():
                         await conn.send_json({
-                            "type": "game_start"
+                            "type": "start_game"
                         })
 
     except WebSocketDisconnect:

@@ -5,6 +5,7 @@ class MultiplayerGameSession:
     def __init__(self):
         self.players = {}  # player_id -> PlayerState
         self.started = False
+        self.ready_players = set()
 
     def start_game(self):
         if len(self.players) < 2:
@@ -24,6 +25,10 @@ class MultiplayerGameSession:
         if len(self.players) < 2:
             return False
         return all(p.ready for p in self.players.values())
+
+    def mark_ready(self, player_id: str):
+        self.ready_players.add(player_id)
+        return len(self.ready_players) >= 2 and len(self.ready_players) == len(self.players)
 
     def submit_typing(self, player_id: str, typed: str, is_backspace=False):
         player = self.players[player_id]
