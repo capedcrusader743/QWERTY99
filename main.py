@@ -13,6 +13,7 @@ active_connections = {}
 origins = [
     "http://localhost:5173",
     "http://localhost:8000",
+    "https://qwerty99.onrender.com"
 ]
 
 app.add_middleware(

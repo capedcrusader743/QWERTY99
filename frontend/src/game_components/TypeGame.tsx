@@ -45,13 +45,13 @@ export default function TypeGame() {
     try {
       setLoading(true);
 
-      await fetch('http://localhost:8000/room/join', {
+      await fetch('https://qwerty99.onrender.com/room/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ room_id: roomId, player_id: playerId }),
       });
 
-      const res = await fetch('http://localhost:8000/room/sentence', {
+      const res = await fetch('https://qwerty99.onrender.com/room/sentence', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ room_id: roomId, player_id: playerId }),
@@ -95,7 +95,7 @@ export default function TypeGame() {
   useEffect(() => {
     if (!roomId || !playerId) return;
 
-    const ws = new WebSocket(`ws://localhost:8000/ws/${roomId}/${playerId}`);
+    const ws = new WebSocket(`ws://qwerty99.onrender.com/ws/${roomId}/${playerId}`);
     wsRef.current = ws;
 
     ws.onopen = () => {
@@ -145,7 +145,7 @@ export default function TypeGame() {
     }
 
     try {
-      const response = await fetch('http://localhost:8000/submit', {
+      const response = await fetch('https://qwerty99.onrender.com/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -181,7 +181,7 @@ export default function TypeGame() {
         const fetchNewSentence = async () => {
           let data = null;
           while (!data || !data.sentence) {
-            const r = await fetch('http://localhost:8000/room/sentence', {
+            const r = await fetch('https://qwerty99.onrender.com/room/sentence', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ room_id: roomId, player_id: playerId }),
