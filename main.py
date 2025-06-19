@@ -13,7 +13,8 @@ active_connections = {}
 origins = [
     "http://localhost:5173",
     "http://localhost:8000",
-    "https://qwerty99.onrender.com"
+    "https://qwerty99.onrender.com",
+    "https://qwerty-99-bciy24gc0-capedcrusader743s-projects.vercel.app"
 ]
 
 app.add_middleware(
@@ -128,7 +129,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
                         await conn.send_json({
                             "type": "typing_update",
                             "player_id": player_id,
-                            "text": text
+                            "input": text
                         })
 
             # === Submit Typing ===
