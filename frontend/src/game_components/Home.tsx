@@ -14,13 +14,13 @@ const Home = () => {
 
       // If no roomId provided, create one
       if (!actualRoomId) {
-        const res = await fetch('http://localhost:8000/room/create', { method: 'POST' });
+        const res = await fetch('https://qwerty99.onrender.com/room/create', { method: 'POST' });
         const data = await res.json();
         actualRoomId = data.room_id;
       }
 
       // Join the room
-      await fetch('http://localhost:8000/room/join', {
+      await fetch('https://qwerty99.onrender.com/room/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ room_id: actualRoomId, player_id: playerId })
