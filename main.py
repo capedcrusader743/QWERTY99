@@ -13,7 +13,8 @@ active_connections = {}
 origins = [
     "http://localhost:5173",
     "http://localhost:8000",
-    "https://qwerty-99.vercel.app"
+    "https://qwerty-99.vercel.app",
+    "18.234.100.144:8000"
 ]
 
 app.add_middleware(
