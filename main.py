@@ -13,8 +13,7 @@ active_connections = {}
 origins = [
     "http://localhost:5173",
     "http://localhost:8000",
-    "https://qwerty99.onrender.com",
-    "https://qwerty-99-bciy24gc0-capedcrusader743s-projects.vercel.app"
+    "https://qwerty-99.vercel.app"
 ]
 
 app.add_middleware(
@@ -45,6 +44,10 @@ class SubmitRequest(BaseModel):
     backspace: bool = False
 
 # ==== API Endpoints ====
+
+@app.get("/")
+def read_root():
+    return {"message": "Hello from FastAPI"}
 
 @app.post("/room/create", response_model=CreateRoomResponse)
 def create_room():
