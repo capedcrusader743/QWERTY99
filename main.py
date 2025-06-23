@@ -14,7 +14,7 @@ origins = [
     "http://localhost:5173",
     "http://localhost:8000",
     "https://qwerty-99.vercel.app",
-    "http://18.234.100.144:8000"
+    "https://qwerty99.onrender.com"
 ]
 
 app.add_middleware(
