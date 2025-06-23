@@ -95,7 +95,7 @@ export default function TypeGame() {
   useEffect(() => {
     if (!roomId || !playerId) return;
 
-    const ws = new WebSocket(`wss://18.234.100.144:8000/ws/${roomId}/${playerId}`);
+    const ws = new WebSocket(`wss://qwerty99.onrender.com/ws/${roomId}/${playerId}`);
     wsRef.current = ws;
 
     ws.onopen = () => {
