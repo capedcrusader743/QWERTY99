@@ -30,6 +30,12 @@ class MultiplayerGameSession:
         player = self.players.get(player_id)
         if player:
             player.mark_ready()
+            print(f"[DEBUG] Player {player_id} marked ready.")
+        else:
+            print(f"[ERROR] Player {player_id} not found.")
+
+        print(f"[DEBUG] Ready Players: {[pid for pid, p in self.players.items() if p.ready]}")
+        print(f"[DEBUG] Total Players: {len(self.players)}")
         return self.all_players_ready()
 
     def submit_typing(self, player_id: str, typed: str, is_backspace=False):
