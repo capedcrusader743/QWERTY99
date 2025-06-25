@@ -27,8 +27,10 @@ class MultiplayerGameSession:
         return all(p.ready for p in self.players.values())
 
     def mark_ready(self, player_id: str):
-        self.ready_players.add(player_id)
-        return len(self.ready_players) >= 2 and len(self.ready_players) == len(self.players)
+        player = self.players.get(player_id)
+        if player:
+            player.mark_ready()
+        return self.all_players_ready()
 
     def submit_typing(self, player_id: str, typed: str, is_backspace=False):
         player = self.players[player_id]

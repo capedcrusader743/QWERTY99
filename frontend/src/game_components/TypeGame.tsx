@@ -255,6 +255,9 @@ export default function TypeGame() {
       <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center text-white">
         <h2 className="text-3xl mb-4">Waiting Room</h2>
         <p className="text-gray-400 mb-4">Once all players are ready, the game will begin.</p>
+        <p className="text-blue-400 mb-2 text-lg">
+          Room Code: <code className="bg-gray-800 px-2 py-1 rounded">{roomId}</code>
+        </p>
 
         {!isReady ? (
           <button
