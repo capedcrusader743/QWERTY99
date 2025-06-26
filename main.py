@@ -1,8 +1,9 @@
 import time
 import uvicorn
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import Optional
 
 from lobby import LobbyManager
 
@@ -51,9 +52,12 @@ def read_root():
     return {"message": "Hello from FastAPI"}
 
 @app.post("/room/create", response_model=CreateRoomResponse)
-def create_room():
-    room_id = lobby.create_room()
-    return {"room_id": room_id}
+def create_room(custom_id: Optional[str] = Query(None)):
+    try:
+        room_id = lobby.create_room(custom_id)
+        return {"room_id": room_id}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/room/join")
 def join_room(data: JoinRoomRequest):
@@ -106,6 +110,8 @@ def submit_typing(data: SubmitRequest):
 
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
 
 
 @app.websocket("/ws/{room_id}/{player_id}")

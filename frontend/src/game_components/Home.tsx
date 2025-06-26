@@ -12,8 +12,20 @@ const Home = () => {
     try {
       let actualRoomId = roomId;
 
-      // If no roomId provided, create one
-      if (!actualRoomId) {
+      // If roomId is provided, try to create room with that ID
+      if (actualRoomId) {
+        const createRes = await fetch(
+            `https://qwerty99.onrender.com/room/create?custom_id=${encodeURIComponent(actualRoomId)}`,
+            { method: 'POST' }
+        );
+
+        // If room already exists, skip error
+        if (!createRes.ok && createRes.status !== 400) {
+          const errData = await createRes.json();
+          throw new Error(errData.detail || 'Unknown error');
+        }
+      } else {
+        // If no custom room ID, let backend auto-generate one
         const res = await fetch('https://qwerty99.onrender.com/room/create', { method: 'POST' });
         const data = await res.json();
         actualRoomId = data.room_id;
@@ -64,7 +76,7 @@ const Home = () => {
 
           <input
             type="text"
-            placeholder="Enter room ID (leave blank to create one)"
+            placeholder="Enter room ID: Must be in number (leave blank to create one)"
             className="w-full p-2 rounded text-black"
             value={roomId}
             onChange={(e) => setRoomId(e.target.value)}

@@ -5,8 +5,11 @@ class LobbyManager:
     def __init__(self):
         self.rooms = {}  # room_id -> MultiplayerGameSession
 
-    def create_room(self):
-        room_id = str(uuid.uuid4())
+    def create_room(self, room_id: str = None):
+        if room_id is None:
+            room_id = str(uuid.uuid4())
+        if room_id in self.rooms:
+            raise ValueError("Room already exists")
         self.rooms[room_id] = MultiplayerGameSession()
         return room_id
 
