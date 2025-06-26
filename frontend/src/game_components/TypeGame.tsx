@@ -202,7 +202,8 @@ export default function TypeGame() {
               difficulty: level,
               wpm,
               startTime: Date.now(),
-              backspaces: 0,
+              backspaces: prev!.backspaces,
+              errors: prev!.errors,
             }));
             setInput('');
             setIncomingGarbage(false);
@@ -215,7 +216,8 @@ export default function TypeGame() {
             difficulty: level,
             wpm,
             startTime: Date.now(),
-            backspaces: 0
+            backspaces: prev!.backspaces,
+            errors: prev!.errors,
           }));
           setInput('');
         }
