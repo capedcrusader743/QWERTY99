@@ -32,10 +32,11 @@ export default function TypeGame() {
   const [error, setError] = useState('');
   const [incomingGarbage, setIncomingGarbage] = useState(false);
   const [winner, setWinner] = useState<string | null>(null);
-  const [otherPlayersTyping, setOtherPlayersTyping] = useState<{ [id: string]: string }>({});
+  // const [otherPlayersTyping, setOtherPlayersTyping] = useState<{ [id: string]: string }>({});
   const [gameStarted, setGameStarted] = useState(false);
   const [isReady, setReady] = useState(false);
   const [waitingToStart, setWaitingToStart] = useState(true);
+  const [otherPlayersTyping, setOtherPlayersTyping] = useState<{ [id: string]: { input: string; sentence: string} }>({});
 
   const wsRef = useRef<WebSocket | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -106,7 +107,13 @@ export default function TypeGame() {
       const data = JSON.parse(event.data);
 
       if (data.type === 'typing_update') {
-        setOtherPlayersTyping(prev => ({ ...prev, [data.player_id]: data.input }));
+        setOtherPlayersTyping(prev => ({
+          ...prev,
+          [data.player_id]: {
+            input: data.input,
+            sentence: data.sentence
+          }
+        }));
       } else if (data.type === 'garbage_attack') {
         setIncomingGarbage(true);
       } else if (data.type === 'game_over') {
@@ -311,14 +318,31 @@ export default function TypeGame() {
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-3xl">
-        {Object.entries(otherPlayersTyping).map(([id, typed]) =>
-          id !== playerId && (
-            <div key={id} className="text-sm text-gray-400 italic mb-2">
-              {id} typing: <span className="text-white">{typed}</span>
-            </div>
-          )
-        )}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+          {Object.entries(otherPlayersTyping).map(([id, data]) => {
+            if (id === playerId) return null;
 
+            const { input, sentence } = data;
+            return (
+              <div key={id} className="bg-gray-800 p-3 rounded text-sm text-white shadow-md">
+                <p className="mb-1 text-xs text-gray-400">{id}</p>
+                <div className="whitespace-pre-wrap font-mono text-xs">
+                  {sentence.split('').map((char, i) => {
+                    let color = 'text-gray-400';
+                    if (i < input.length) {
+                      color = input[i] === char ? 'text-green-400' : 'text-yellow-400';
+                    }
+                    return (
+                      <span key={i} className={`${color}`}>
+                        {char}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
         <div className="flex justify-between text-white mb-8">
           <div>Level: {game.difficulty}</div>
           <div className={game.errors >= game.maxErrors - 2 ? 'text-red-400' : 'text-yellow-400'}>
