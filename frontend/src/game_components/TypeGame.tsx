@@ -324,8 +324,8 @@ export default function TypeGame() {
 
             const { input, sentence } = data;
             return (
-              <div key={id} className="bg-gray-800 p-3 rounded text-sm text-white shadow-md">
-                <p className="mb-1 text-xs text-gray-400">{id}</p>
+              <div key={id} className="bg-gray-800 p-3 rounded text-sm text-white shadow-md border border-blue-500">
+                <p className="mb-1 text-xs text-blue-400 font-semibold">Player: {id}</p>
                 <div className="whitespace-pre-wrap font-mono text-xs">
                   {sentence.split('').map((char, i) => {
                     let color = 'text-gray-400';
