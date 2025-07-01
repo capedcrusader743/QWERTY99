@@ -134,12 +134,16 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
             # === Typing Update ===
             elif msg_type == "typing":
                 text = data.get("typed", "")
+                game = lobby.get_game(room_id)
+                player = game.get_player(data.player_id)
+
                 for pid, conn in active_connections[room_id].items():
                     if pid != player_id:
                         await conn.send_json({
                             "type": "typing_update",
                             "player_id": player_id,
-                            "input": text
+                            "input": text,
+                            "sentence": player.current_sentence
                         })
 
             # === Submit Typing ===
