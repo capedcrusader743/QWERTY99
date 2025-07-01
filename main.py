@@ -135,7 +135,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
             elif msg_type == "typing":
                 text = data.get("typed", "")
                 game = lobby.get_game(room_id)
-                player = game.get_player(data.player_id)
+                player = game.get_player(player_id)
 
                 if not player.current_sentence:
                     player.get_next_sentence() # Ensure sentence is set
