@@ -327,17 +327,23 @@ export default function TypeGame() {
               <div key={id} className="bg-gray-800 p-3 rounded text-sm text-white shadow-md border border-blue-500">
                 <p className="mb-1 text-xs text-blue-400 font-semibold">Player: {id}</p>
                 <div className="whitespace-pre-wrap font-mono text-xs">
-                  {sentence.split('').map((char, i) => {
-                    let color = 'text-gray-400';
-                    if (i < input.length) {
-                      color = input[i] === char ? 'text-green-400' : 'text-yellow-400';
-                    }
-                    return (
-                      <span key={i} className={`${color}`}>
-                        {char}
-                      </span>
-                    );
-                  })}
+                    {sentence.split('').map((char, i) => {
+                      const typedChar = input[i];
+                      let color = 'text-gray-400';
+
+                      if (typedChar !== undefined) {
+                        color = typedChar === char ? 'text-green-400' : 'text-red-400';
+                      }
+
+                      const showCursor = i === input.length;
+
+                      return (
+                        <span key={i} className={`${color} relative`}>
+                          {char}
+                          {showCursor && <span className="absolute animate-pulse left-0 -bottom-1 w-0.5 h-4 bg-blue-500" />}
+                        </span>
+                      );
+                    })}
                 </div>
               </div>
             );
