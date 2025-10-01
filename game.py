@@ -59,6 +59,7 @@ class PlayerState:
         self.incoming_garbage = False
         self.garbage_warning_time = None
         self.streak = 0
+        self.caret_index = 0 # For opponent live typing track
         self.live_input = ""
         self.eliminated = False
         self.ready = False
@@ -73,6 +74,10 @@ class PlayerState:
             self.difficulty_level = 2
         else:
             self.difficulty_level = 1
+
+    def update_typing(self, live_input: str, caret_index: int):
+        self.live_input = live_input
+        self.caret_index = caret_index
 
     def get_next_sentence(self):
         self.update_difficulty()

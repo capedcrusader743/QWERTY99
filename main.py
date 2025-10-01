@@ -112,8 +112,6 @@ def submit_typing(data: SubmitRequest):
         raise HTTPException(status_code=404, detail=str(e))
 
 
-
-
 @app.websocket("/ws/{room_id}/{player_id}")
 async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str):
     await websocket.accept()
@@ -134,21 +132,31 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
             # === Typing Update ===
             elif msg_type == "typing":
                 text = data.get("typed", "")
+                caret_index = data.get("caretIndex", len(text))  # 🔥 new
+
                 game = lobby.get_game(room_id)
                 player = game.get_player(player_id)
 
                 if not player.current_sentence:
-                    player.get_next_sentence() # Ensure sentence is set
+                    player.get_next_sentence()  # Ensure sentence is set
 
+                # Update backend state
+                player.update_typing(text, caret_index)
+
+                # Broadcast typing state
                 for pid, conn in active_connections[room_id].items():
                     if pid != player_id:
                         await conn.send_json({
                             "type": "typing_update",
                             "player_id": player_id,
                             "input": text,
+                            "caretIndex": caret_index,  # 🔥 send this too
                             "sentence": player.current_sentence
                         })
-                print(f"[Typing Update] {player_id} input: '{text}', sentence: '{player.current_sentence}'") # Remove after finish debugging
+
+                print(
+                    f"[Typing Update] {player_id} input='{text}' caret={caret_index}, sentence='{player.current_sentence}'")
+
 
 
             # === Submit Typing ===

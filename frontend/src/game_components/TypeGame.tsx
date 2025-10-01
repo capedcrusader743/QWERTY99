@@ -36,7 +36,7 @@ export default function TypeGame() {
   const [gameStarted, setGameStarted] = useState(false);
   const [isReady, setReady] = useState(false);
   const [waitingToStart, setWaitingToStart] = useState(true);
-  const [otherPlayersTyping, setOtherPlayersTyping] = useState<{ [id: string]: { input: string; sentence: string} }>({});
+  const [otherPlayersTyping, setOtherPlayersTyping] = useState<{ [id: string]: { input: string; sentence: string; caretIndex: number} }>({});
 
   const wsRef = useRef<WebSocket | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -111,7 +111,8 @@ export default function TypeGame() {
           ...prev,
           [data.player_id]: {
             input: data.input,
-            sentence: data.sentence
+            sentence: data.sentence,
+            caretIndex: data.caretIndex
           }
         }));
       } else if (data.type === 'garbage_attack') {
@@ -140,6 +141,7 @@ export default function TypeGame() {
     if (!game) return;
     const newValue = e.target.value;
     const isBackspace = newValue.length < input.length;
+    const caretIndex = e.target.selectionStart ?? newValue.length;
 
     setInput(newValue);
 
@@ -147,7 +149,8 @@ export default function TypeGame() {
       wsRef.current.send(JSON.stringify({
         type: 'typing',
         player_id: playerId,
-        input: newValue
+        input: newValue,
+        caretIndex
       }));
     }
 
@@ -236,6 +239,7 @@ export default function TypeGame() {
     previousInputLength.current = newValue.length;
   };
 
+
   const renderSentence = () => {
     if (!game) return null;
     return game.sentence.split('').map((char, i) => {
@@ -315,6 +319,7 @@ export default function TypeGame() {
     );
   }
 
+
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-3xl">
@@ -322,7 +327,7 @@ export default function TypeGame() {
           {Object.entries(otherPlayersTyping).map(([id, data]) => {
             if (id === playerId) return null;
 
-            const { input, sentence } = data;
+            const { input, sentence, caretIndex } = data;
             return (
               <div key={id} className="bg-gray-800 p-3 rounded text-sm text-white shadow-md border border-blue-500">
                 <p className="mb-1 text-xs text-blue-400 font-semibold">Player: {id}</p>
@@ -335,7 +340,7 @@ export default function TypeGame() {
                         color = typedChar === char ? 'text-green-400' : 'text-red-400';
                       }
 
-                      const showCursor = i === input.length;
+                      const showCursor = i === caretIndex;
 
                       return (
                         <span key={i} className={`${color} relative`}>
