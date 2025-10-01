@@ -236,24 +236,48 @@ export default function TypeGame() {
     previousInputLength.current = newValue.length;
   };
 
-  const renderSentence = () => {
-    if (!game) return null;
-    return game.sentence.split('').map((char, i) => {
+  // const renderSentence = () => {
+  //   if (!game) return null;
+  //   return game.sentence.split('').map((char, i) => {
+  //     let className = 'text-gray-400';
+  //     if (i < input.length) {
+  //       className = input[i] === char
+  //         ? 'text-green-500'
+  //         : game.backspaces >= game.maxBackspaces
+  //           ? 'text-red-500 underline'
+  //           : 'text-yellow-500';
+  //     }
+  //     return (
+  //       <span key={i} className={`${className} text-2xl font-mono`}>
+  //         {char}
+  //       </span>
+  //     );
+  //   });
+  // };
+
+  function renderHighlightedSentence(sentence: string, input: string, backspacesUsed = 0, maxBackspaces = 5) {
+    return sentence.split('').map((char, i) => {
       let className = 'text-gray-400';
+
       if (i < input.length) {
         className = input[i] === char
-          ? 'text-green-500'
-          : game.backspaces >= game.maxBackspaces
+          ? 'text-green-400'
+          : backspacesUsed >= maxBackspaces
             ? 'text-red-500 underline'
             : 'text-yellow-500';
       }
+
+      const showCursor = i === input.length;
+
       return (
-        <span key={i} className={`${className} text-2xl font-mono`}>
+        <span key={i} className={`${className} relative`}>
           {char}
+          {showCursor && <span className="absolute animate-pulse left-0 -bottom-1 w-0.5 h-4 bg-blue-500" />}
         </span>
       );
     });
-  };
+  }
+
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -327,23 +351,24 @@ export default function TypeGame() {
               <div key={id} className="bg-gray-800 p-3 rounded text-sm text-white shadow-md border border-blue-500">
                 <p className="mb-1 text-xs text-blue-400 font-semibold">Player: {id}</p>
                 <div className="whitespace-pre-wrap font-mono text-xs">
-                    {sentence.split('').map((char, i) => {
-                      const typedChar = input[i];
-                      let color = 'text-gray-400';
+                  {renderHighlightedSentence(sentence, input)}
+                    {/*{sentence.split('').map((char, i) => {*/}
+                    {/*  const typedChar = input[i];*/}
+                    {/*  let color = 'text-gray-400';*/}
 
-                      if (typedChar !== undefined) {
-                        color = typedChar === char ? 'text-green-400' : 'text-red-400';
-                      }
+                    {/*  if (typedChar !== undefined) {*/}
+                    {/*    color = typedChar === char ? 'text-green-400' : 'text-red-400';*/}
+                    {/*  }*/}
 
-                      const showCursor = i === input.length;
+                    {/*  const showCursor = i === input.length;*/}
 
-                      return (
-                        <span key={i} className={`${color} relative`}>
-                          {char}
-                          {showCursor && <span className="absolute animate-pulse left-0 -bottom-1 w-0.5 h-4 bg-blue-500" />}
-                        </span>
-                      );
-                    })}
+                    {/*  return (*/}
+                    {/*    <span key={i} className={`${color} relative`}>*/}
+                    {/*      {char}*/}
+                    {/*      {showCursor && <span className="absolute animate-pulse left-0 -bottom-1 w-0.5 h-4 bg-blue-500" />}*/}
+                    {/*    </span>*/}
+                    {/*  );*/}
+                    {/*})}*/}
                 </div>
               </div>
             );
@@ -368,7 +393,8 @@ export default function TypeGame() {
 
         <div className="bg-gray-800 p-6 rounded-lg mb-6 min-h-32">
           <div className="whitespace-pre-wrap leading-relaxed">
-            {renderSentence()}
+            {/*{renderSentence()}*/}
+            {game && renderHighlightedSentence(game.sentence, input, game.backspaces, game.maxBackspaces)}
           </div>
         </div>
 
