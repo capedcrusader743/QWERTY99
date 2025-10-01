@@ -351,6 +351,7 @@ export default function TypeGame() {
               <div key={id} className="bg-gray-800 p-3 rounded text-sm text-white shadow-md border border-blue-500">
                 <p className="mb-1 text-xs text-blue-400 font-semibold">Player: {id}</p>
                 <div className="whitespace-pre-wrap font-mono text-xs">
+                  <p>Hello</p>
                   {renderHighlightedSentence(sentence, input)}
                     {/*{sentence.split('').map((char, i) => {*/}
                     {/*  const typedChar = input[i];*/}
